@@ -1,0 +1,10 @@
+<!doctype html><meta charset="utf-8"><title>Mokizen Tank Card demo</title>
+<body style="margin:0;background:#1c1c1c;padding:16px;font-family:sans-serif;color:#ddd">
+<div id="host" style="max-width:420px"></div><div style="height:1400px"></div><div id="below" style="max-width:420px"></div>
+<script type="module">
+import "../dist/mokizen-tank-card.js";
+const mk = (id) => { const c = document.createElement("mokizen-tank-card"); c.setConfig({ tank: "reef-01", height: 240, follow_sun: true, react_on: "binary_sensor.door" }); document.getElementById(id).appendChild(c); return c; };
+window.top_card = mk("host");
+window.states = { "sun.sun": { attributes: { elevation: 30 } }, "binary_sensor.door": { state: "off" } };
+window.top_card.hass = { states: window.states };
+</script>
