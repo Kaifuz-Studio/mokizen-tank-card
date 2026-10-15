@@ -10,6 +10,7 @@ const DEFAULTS = {
   react_on: null,
 };
 
+export const UNLOAD_AFTER_MS = 30000;
 const ID_OK = /^[a-zA-Z0-9_-]{1,64}$/;
 
 /* Pure helpers (also used by the tests). */
@@ -61,6 +62,7 @@ class MokizenTankCard extends Base {
 
   connectedCallback() { this._observe(); document.addEventListener("visibilitychange", this._onVis ||= () => this._sync()); }
   disconnectedCallback() {
+    clearTimeout(this._unloadTimer);
     this._io?.disconnect(); this._io = null;
     document.removeEventListener("visibilitychange", this._onVis);
     this._unload();
@@ -107,7 +109,11 @@ class MokizenTankCard extends Base {
   /* The tank runs only while the card is on screen and the page is visible. */
   _sync() {
     if (!this._supported) return;
-    if (this._visible && !document.hidden) this._load(); else this._unload();
+    clearTimeout(this._unloadTimer);
+    if (this._visible && !document.hidden) { this._load(); return; }
+    /* Every (re)load fetches the tank config from Mokizen, which is rate limited per IP per day, so a card that is
+       only briefly out of sight keeps its tank; it is dropped after UNLOAD_AFTER_MS hidden. */
+    this._unloadTimer = setTimeout(() => this._unload(), UNLOAD_AFTER_MS);
   }
 
   _load() {

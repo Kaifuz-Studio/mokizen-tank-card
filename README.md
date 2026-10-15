@@ -31,7 +31,7 @@ react_on: binary_sensor.front_door   # the fish dart when this entity changes st
 ## Good to know
 
 - The dashboard device needs internet and WebGL. Without WebGL the card says so instead of showing a blank box.
-- The tank is unloaded while the card is off screen or the page is hidden, and loaded again when it comes back, so a wall tablet is not drawing a tank nobody sees.
+- The tank is unloaded after the card has been off screen (or the page hidden) for 30 seconds, and loaded again when it comes back, so a wall tablet is not drawing a tank nobody sees.
 - The frame rate cannot be capped from outside the widget (it is a separate origin), so a long-lived tablet will still use some battery while the tank is visible.
 - The widget shows its own small controls (language, fullscreen) and a Mokizen credit.
 
