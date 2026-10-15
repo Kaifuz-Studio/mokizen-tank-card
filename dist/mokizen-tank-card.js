@@ -6,8 +6,10 @@ const DEFAULTS = {
   tank: "reef-01",
   height: 240,
   base_url: "https://mokizen.com",
-  follow_sun: false,
+  fps: 20,
+  day_night: false,
   react_on: null,
+  feed_on: null,
 };
 
 export const UNLOAD_AFTER_MS = 30000;
@@ -23,20 +25,29 @@ export function normalise(config) {
   try { u = new URL(String(c.base_url)); } catch { throw new Error("base_url is not a valid URL"); }
   if (u.protocol !== "https:" && u.hostname !== "localhost") throw new Error("base_url must be https");
   c.base_url = u.origin;
-  c.follow_sun = c.follow_sun === true;
-  c.react_on = typeof c.react_on === "string" && c.react_on.includes(".") ? c.react_on : null;
+  const f = Number(c.fps);
+  c.fps = f === 0 ? 0 : Number.isFinite(f) ? Math.min(60, Math.max(5, Math.round(f))) : DEFAULTS.fps;
+  c.day_night = c.day_night === true;
+  const entity = (v) => (typeof v === "string" && /^[a-z_]+\.[a-z0-9_]+$/.test(v) ? v : null);
+  c.react_on = entity(c.react_on);
+  c.feed_on = entity(c.feed_on);
   return c;
 }
 
 export function tankUrl(c) {
-  return `${c.base_url}/app/tank?id=${encodeURIComponent(c.tank)}&embed=1`;
+  return `${c.base_url}/app/tank.html?id=${encodeURIComponent(c.tank)}&embed=1&bare=1` + (c.fps ? `&fps=${c.fps}` : "");
 }
 
-/* Brightness of the frame for the sun's position: full by day, dim at night (elevation in degrees). */
-export function sunBrightness(elevation) {
-  if (typeof elevation !== "number" || Number.isNaN(elevation)) return 1;
-  const t = Math.min(1, Math.max(0, (elevation + 6) / 12)); // -6° (dusk) .. +6° (day)
-  return Math.round((0.45 + 0.55 * t) * 100) / 100;
+/* The hour of the day (0-24, fractional) in a time zone: the tank's light follows the home's own clock. */
+export function localHour(date, timeZone) {
+  let parts;
+  try {
+    parts = new Intl.DateTimeFormat("en-GB", { hour: "numeric", minute: "numeric", hourCycle: "h23", timeZone }).formatToParts(date);
+  } catch {
+    return date.getHours() + date.getMinutes() / 60;
+  }
+  const n = (t) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  return n("hour") + n("minute") / 60;
 }
 
 export function webglAvailable(doc = document) {
@@ -54,32 +65,48 @@ class MokizenTankCard extends Base {
     this._visible = false;
     this._frame = null;
     this._lastReact = undefined;
+    this._lastFeed = undefined;
     this._build();
   }
 
   static getStubConfig() { return { tank: DEFAULTS.tank }; }
   getCardSize() { return Math.ceil(this._c.height / 50); }
 
-  connectedCallback() { this._observe(); document.addEventListener("visibilitychange", this._onVis ||= () => this._sync()); }
+  connectedCallback() {
+    this._observe();
+    document.addEventListener("visibilitychange", this._onVis ||= () => this._sync());
+    /* the widget says "ready" once its tank is built; only then can it take the hour */
+    window.addEventListener("message", this._onMsg ||= (e) => {
+      if (e.source === this._frame?.contentWindow && e.origin === this._c?.base_url && e.data?.ns === "mokizen" && e.data.evt === "ready") this._sendHour();
+    });
+    this._hourTimer = setInterval(() => this._sendHour(), 60000);
+  }
   disconnectedCallback() {
     clearTimeout(this._unloadTimer);
+    clearInterval(this._hourTimer);
     this._io?.disconnect(); this._io = null;
     document.removeEventListener("visibilitychange", this._onVis);
+    window.removeEventListener("message", this._onMsg);
     this._unload();
   }
 
   set hass(hass) {
     this._hass = hass;
     if (!this._c) return;
-    if (this._c.follow_sun) {
-      const e = hass.states["sun.sun"]?.attributes?.elevation;
-      if (this._frame) this._frame.style.filter = `brightness(${sunBrightness(e)})`;
-    }
-    if (this._c.react_on) {
-      const s = hass.states[this._c.react_on]?.state;
-      if (this._lastReact !== undefined && s !== this._lastReact) this._send("dart");
-      this._lastReact = s;
-    }
+    this._timeZone = hass.config?.time_zone;
+    if (this._c.react_on) this._lastReact = this._changed(hass, this._c.react_on, this._lastReact, () => this._send("dart"));
+    if (this._c.feed_on) this._lastFeed = this._changed(hass, this._c.feed_on, this._lastFeed, () => this._send("feed"));
+  }
+
+  /* Runs `fire` when the entity's state differs from the previous one (not on the very first value). */
+  _changed(hass, entity, previous, fire) {
+    const s = hass.states[entity]?.state;
+    if (previous !== undefined && s !== previous) fire();
+    return s;
+  }
+
+  _sendHour() {
+    if (this._c.day_night) this._send("setHour", [localHour(new Date(), this._timeZone)]);
   }
 
   _build() {
@@ -88,7 +115,7 @@ class MokizenTankCard extends Base {
       <style>
         ha-card { overflow: hidden; }
         .box { position: relative; height: ${this._c.height}px; background: #021826; }
-        iframe { border: 0; width: 100%; height: 100%; display: block; transition: filter 1.5s; }
+        iframe { border: 0; width: 100%; height: 100%; display: block; }
         .note { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
                 color: #cfe8f3; font: 14px/1.4 sans-serif; text-align: center; padding: 16px; }
       </style>
@@ -127,7 +154,6 @@ class MokizenTankCard extends Base {
     this._frame = f;
     this._note.style.display = "none";
     this._box.appendChild(f);
-    if (this._hass) this.hass = this._hass;
   }
 
   _unload() {

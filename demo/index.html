@@ -1,10 +1,14 @@
 <!doctype html><meta charset="utf-8"><title>Mokizen Tank Card demo</title>
 <body style="margin:0;background:#1c1c1c;padding:16px;font-family:sans-serif;color:#ddd">
-<div id="host" style="max-width:420px"></div><div style="height:1400px"></div><div id="below" style="max-width:420px"></div>
+<div id="host" style="max-width:420px"></div>
 <script type="module">
 import "../dist/mokizen-tank-card.js";
-const mk = (id) => { const c = document.createElement("mokizen-tank-card"); c.setConfig({ tank: "reef-01", height: 240, follow_sun: true, react_on: "binary_sensor.door" }); document.getElementById(id).appendChild(c); return c; };
-window.top_card = mk("host");
-window.states = { "sun.sun": { attributes: { elevation: 30 } }, "binary_sensor.door": { state: "off" } };
-window.top_card.hass = { states: window.states };
+const c = document.createElement("mokizen-tank-card");
+/* base_url points at a local Mokizen checkout when ?local=1 (http is allowed for localhost only) */
+const base = new URLSearchParams(location.search).get("local") ? "http://localhost:8766" : "https://mokizen.com";
+c.setConfig({ tank: "reef-01", height: 240, day_night: true, react_on: "binary_sensor.door", feed_on: "input_button.feed", base_url: base });
+document.getElementById("host").appendChild(c);
+window.card = c;
+window.states = { "binary_sensor.door": { state: "off" }, "input_button.feed": { state: "2026-10-15T08:00:00" } };
+c.hass = { states: window.states, config: { time_zone: "Asia/Saigon" } };
 </script>
