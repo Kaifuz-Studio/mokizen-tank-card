@@ -45,3 +45,12 @@ test("localHour reads the hour in the given time zone", () => {
   assert.equal(localHour(d, "America/New_York"), 20.5);
   assert.equal(typeof localHour(d, "Not/AZone"), "number");
 });
+
+test("the tank speaks the card's language, else Home Assistant's", () => {
+  const c = normalise({});
+  assert.ok(!tankUrl(c).includes("hl="));
+  assert.ok(tankUrl(c, "de").endsWith("&hl=de"));
+  assert.ok(tankUrl(c, "pt-BR").endsWith("&hl=pt"));
+  assert.ok(tankUrl(normalise({ language: "ja" }), "de").endsWith("&hl=ja"));
+  assert.equal(normalise({ language: "not a language" }).language, null);
+});

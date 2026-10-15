@@ -20,6 +20,7 @@ day_night: true                        # the tank's light follows your home's ti
 feed_on: input_button.feed_fish        # a pellet drops and the fish go for it when this entity changes state
 react_on: binary_sensor.front_door     # the fish dart when this entity changes state
 fps: 20                                # frame cap, 5–60; 0 = uncapped (default 20)
+language: ja                           # the tank's words (loading / not found); default: Home Assistant's language
 ```
 
 | Option | Default | Notes |
@@ -30,6 +31,7 @@ fps: 20                                # frame cap, 5–60; 0 = uncapped (defaul
 | `feed_on` | none | an entity id; any state change drops a pellet |
 | `react_on` | none | an entity id; any state change makes the fish dart |
 | `fps` | `20` | lower is easier on a wall tablet's battery |
+| `language` | your Home Assistant language | vi, en, ja, zh, de, ko, es; anything else shows English |
 | `base_url` | `https://mokizen.com` | where the widget is served; must be https |
 
 `day_night`, `feed_on` and the clean frame (no buttons, no credit chip) need the Mokizen widget from 2026-10 or later;

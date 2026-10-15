@@ -10,10 +10,14 @@ const DEFAULTS = {
   day_night: false,
   react_on: null,
   feed_on: null,
+  language: null,
 };
 
 export const UNLOAD_AFTER_MS = 30000;
 const ID_OK = /^[a-zA-Z0-9_-]{1,64}$/;
+
+/* a two-letter language code ("de", "pt-BR" → "pt"), or null */
+const lang2 = (v) => { const m = /^([a-z]{2})(?:[-_]|$)/i.exec(String(v || "")); return m ? m[1].toLowerCase() : null; };
 
 /* Pure helpers (also used by the tests). */
 export function normalise(config) {
@@ -31,11 +35,15 @@ export function normalise(config) {
   const entity = (v) => (typeof v === "string" && /^[a-z_]+\.[a-z0-9_]+$/.test(v) ? v : null);
   c.react_on = entity(c.react_on);
   c.feed_on = entity(c.feed_on);
+  c.language = lang2(c.language);
   return c;
 }
 
-export function tankUrl(c) {
-  return `${c.base_url}/app/tank.html?id=${encodeURIComponent(c.tank)}&embed=1&bare=1` + (c.fps ? `&fps=${c.fps}` : "");
+/* the tank speaks the card's `language`, else Home Assistant's own (hass.language); the widget falls back to
+   English for a language it does not have */
+export function tankUrl(c, hassLanguage) {
+  const hl = c.language || lang2(hassLanguage);
+  return `${c.base_url}/app/tank.html?id=${encodeURIComponent(c.tank)}&embed=1&bare=1` + (c.fps ? `&fps=${c.fps}` : "") + (hl ? `&hl=${hl}` : "");
 }
 
 /* The hour of the day (0-24, fractional) in a time zone: the tank's light follows the home's own clock. */
@@ -146,7 +154,7 @@ class MokizenTankCard extends Base {
   _load() {
     if (this._frame) return;
     const f = document.createElement("iframe");
-    f.src = tankUrl(this._c);
+    f.src = tankUrl(this._c, this._hass?.language);
     f.title = `Mokizen tank ${this._c.tank}`;
     f.setAttribute("loading", "lazy");
     f.setAttribute("referrerpolicy", "no-referrer");
