@@ -3,6 +3,8 @@
 A small living aquarium for your Home Assistant dashboard. The tank is drawn by the hosted
 [Mokizen](https://mokizen.com) widget; this card frames it, keeps it light on battery and lets it react to Home Assistant.
 
+![The reef-01 tank, drawn by the Mokizen widget](docs/tank.png)
+
 ## Install (HACS, custom repository)
 
 1. HACS → Frontend → ⋮ → Custom repositories → add this repository as type **Dashboard**.
